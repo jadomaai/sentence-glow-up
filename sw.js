@@ -1,5 +1,5 @@
 /* Sentence Glow-Up service worker. Bump VERSION whenever you upload changed files. */
-const VERSION = "glowup-v1";
+const VERSION = "glowup-v2";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {

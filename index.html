@@ -132,6 +132,13 @@ textarea:focus{border-color:var(--accent);outline:none}
 canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:15}
 footer{text-align:center;font-size:.85rem;margin-top:2rem}
 footer button{background:none;border:none;color:var(--muted);text-decoration:underline}
+/* finished list */
+.hitem{border-top:1px dashed var(--line);padding:.6rem 0}
+.hitem:first-child{border-top:none}
+.hitem summary{color:var(--ink);font-weight:400}
+.hitem summary .hd{display:block;font-size:.8rem;font-weight:700;color:var(--muted)}
+.hitem summary .hf{font-family:var(--display);font-weight:600;font-size:1.1rem}
+.hitem .ladder li:last-child{font-size:1.15rem}
 /* modes + word builder */
 .modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:.6rem;margin-top:.7rem}
 .mode{text-align:left;border:2px solid var(--line);background:var(--bg);border-radius:1rem;padding:.8rem 1rem;font-size:1.4rem}
@@ -214,7 +221,8 @@ footer button{background:none;border:none;color:var(--muted);text-decoration:und
       </div>
     </div>
     <div class="panel">
-      <h2>Choose a sentence</h2>
+      <h2 id="pickHead">Choose a sentence</h2>
+      <p class="muted" style="margin:.2rem 0 0;font-size:.95rem">When you finish one, it moves to your finished list and a new sentence joins the bottom.</p>
       <div class="picks" id="picks"></div>
       <p style="margin:1.1rem 0 .4rem;font-weight:700">Or type your own</p>
       <div class="row">
@@ -222,6 +230,15 @@ footer button{background:none;border:none;color:var(--muted);text-decoration:und
         <button class="btn" id="ownGo">Upgrade it</button>
       </div>
       <p class="muted" id="ownErr" style="margin:.4rem 0 0" hidden>Type a sentence of at least 3 words.</p>
+    </div>
+    <div class="panel" id="histPanel">
+      <div class="row" style="justify-content:space-between"><h2 id="histHead">My finished sentences</h2><button class="btn ghost small" id="copyAll">📋 Copy all</button></div>
+      <p class="muted" id="histEmpty" style="margin:.4rem 0 0">Finished sentences are saved here with every round, so you can copy them into another app.</p>
+      <div id="hist"></div>
+      <textarea id="copyBox" hidden readonly aria-label="Text to copy" style="min-height:9rem;font-size:1rem;margin-top:.8rem"></textarea>
+      <p class="muted" id="copyBoxHelp" hidden style="margin:.3rem 0 0;font-size:.9rem">The text above is selected. Press Ctrl+C (Cmd+C on a Mac), or long-press it and choose Copy.</p>
+      <div class="row" id="histClearRow" style="margin-top:.9rem"><button class="btn ghost small" id="histClear">Clear this list</button></div>
+      <div class="row" id="histConfirm" hidden style="margin-top:.9rem"><strong>Delete every finished sentence?</strong><button class="btn small" id="histYes">Yes, delete</button><button class="btn ghost small" id="histNo">Cancel</button></div>
     </div>
     <div class="panel">
       <h2 id="badgeHead">Badges</h2>
@@ -306,6 +323,7 @@ footer button{background:none;border:none;color:var(--muted);text-decoration:und
       <ol class="ladder" id="ladder"></ol>
       <div class="row" style="margin-top:1rem">
         <button class="btn ghost small" id="finSpeak">🔊 Read the final sentence</button>
+        <button class="btn ghost small" id="finCopy">📋 Copy all rounds</button>
       </div>
       <p class="muted" style="margin:1rem 0 0;font-size:.95rem">The game checks you added the right kind of word, but it can't check everything. Ask a grown-up to read your final sentence with you.</p>
     </div>
@@ -328,14 +346,39 @@ footer button{background:none;border:none;color:var(--muted);text-decoration:und
 var $=function(id){return document.getElementById(id)};
 
 /* ---------- data ---------- */
-var SENTENCES=[
-  "The girl walked up the hill.",
-  "A cat sat on the wall.",
-  "The boy opened the door.",
-  "The wind blew through the camp.",
-  "Sam found a map in the tent.",
-  "They climbed the mountain."
+var BANK=[
+ "The girl walked up the hill.",
+ "A cat sat on the wall.",
+ "The boy opened the door.",
+ "The wind blew through the camp.",
+ "Sam found a map in the tent.",
+ "They climbed the mountain.",
+ "The dog barked at the postman.",
+ "A bird landed on the fence.",
+ "The children played in the park.",
+ "Mum put the cake in the oven.",
+ "The ship sailed across the sea.",
+ "A fox crept into the garden.",
+ "The rain fell on the roof.",
+ "Grandpa sat by the fire.",
+ "The train stopped at the station.",
+ "An owl hooted in the tree.",
+ "Lily kicked the ball over the wall.",
+ "The car drove down the road.",
+ "The baby slept in the cot.",
+ "A spider spun a web in the corner.",
+ "The knight rode to the castle.",
+ "The teacher wrote on the board.",
+ "A horse galloped across the field.",
+ "The snow covered the village.",
+ "Tom hid behind the curtain.",
+ "The fish swam under the bridge.",
+ "The robot walked into the room.",
+ "A dragon flew over the town.",
+ "The girls ran along the beach.",
+ "The old man walked his dog."
 ];
+var SHOW=6;
 var PREP=new Set("about above across after against along alongside amid amidst among amongst around at before behind below beneath beside besides between beyond by down during except for from in inside into near next of off on onto opposite out outside over past round since through throughout till to toward towards under underneath until up upon with within without".split(" "));
 var CONJ=new Set("and but or so because although though while whilst until unless as since when whenever after before if once even yet nor wherever".split(" "));
 var SIMPLE_CONJ=new Set(["and","but","or","so","yet","nor"]);
@@ -396,12 +439,14 @@ var BADGES=[
  {id:"power10",ico:"🚀",name:"Power Pro",desc:"Complete 10 power-ups"},
  {id:"speed15",ico:"🐇",name:"Quick Fingers",desc:"Type at 15 wpm"},
  {id:"speed25",ico:"⚡️",name:"Lightning Keys",desc:"Type at 25 wpm"},
- {id:"allsix",ico:"🏆",name:"Full House",desc:"Finish all 6 sentences"}
+ {id:"allsix",ico:"🏆",name:"Full House",desc:"Finish 6 sentences"},
+ {id:"all30",ico:"📚",name:"Sentence Collector",desc:"Finish all 30 sentences"}
 ];
 
 /* ---------- storage ---------- */
 var KEY="sentence-glow-up-v1";
-function freshProgress(){return {stars:0,bestWpm:0,badges:[],done:{},powers:0}}
+function freshProgress(){return {stars:0,bestWpm:0,badges:[],powers:0,shown:[0,1,2,3,4,5],next:SHOW,history:[]}}
+function fillShown(){while(state.shown.length<SHOW&&state.next<BANK.length)state.shown.push(state.next++)}
 var store={current:"",players:{},mode:"type"};
 try{
   var raw=localStorage.getItem(KEY);
@@ -415,12 +460,15 @@ try{
 var state;
 function loadPlayer(n){
   var pr=store.players[n]||freshProgress();
-  state={name:n,mode:store.mode,stars:pr.stars||0,bestWpm:pr.bestWpm||0,badges:(pr.badges||[]).slice(),done:Object.assign({},pr.done||{}),powers:pr.powers||0};
+  var shown=pr.shown?pr.shown.slice():[0,1,2,3,4,5].filter(function(i){return !(pr.done&&pr.done[i])});
+  state={name:n,mode:store.mode,stars:pr.stars||0,bestWpm:pr.bestWpm||0,badges:(pr.badges||[]).slice(),powers:pr.powers||0,
+    shown:shown,next:typeof pr.next==="number"?pr.next:SHOW,history:(pr.history||[]).slice()};
+  fillShown();
 }
 loadPlayer(store.current);
 function save(){
   store.mode=state.mode;store.current=state.name;
-  store.players[state.name]={stars:state.stars,bestWpm:state.bestWpm,badges:state.badges,done:state.done,powers:state.powers};
+  store.players[state.name]={stars:state.stars,bestWpm:state.bestWpm,badges:state.badges,powers:state.powers,shown:state.shown,next:state.next,history:state.history};
   if(state.name&&store.players[""])delete store.players[""];
   try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}
 }
@@ -475,16 +523,22 @@ function renderHome(){
   $("lvlName").textContent="Level: "+L.name;
   $("lvlNext").textContent=L.next?(L.next[0]-state.stars)+" stars to "+L.next[1]:"Top level reached!";
   $("lvlFill").style.width=L.pct+"%";
-  $("picks").innerHTML=SENTENCES.map(function(s,i){
-    return '<button class="pick" data-i="'+i+'"><span>'+esc(s)+'</span>'+(state.done[i]?'<span class="done">✓ done</span>':"")+"</button>";
-  }).join("");
+  var doneCount=state.next-state.shown.length;
+  $("pickHead").textContent="Choose a sentence ("+doneCount+" of "+BANK.length+" done)";
+  $("picks").innerHTML=state.shown.length?state.shown.map(function(i){
+    return '<button class="pick" data-i="'+i+'"><span>'+esc(BANK[i])+'</span><span class="muted" style="font-size:.85rem;white-space:nowrap">#'+(i+1)+"</span></button>";
+  }).join(""):'<div><p style="margin:0 0 .6rem;font-weight:700">🎉 You\u2019ve finished all '+BANK.length+' sentences!</p><button class="btn small" id="restartBank">Start the 30 again</button></div>';
+  renderHistory();
   $("badges").innerHTML=BADGES.map(badgeHtml).join("");
   $("badgeHead").textContent="Badges: "+state.badges.length+" of "+BADGES.length+" earned";
   [].forEach.call(document.querySelectorAll(".mode"),function(b){b.setAttribute("aria-checked",String(b.dataset.mode===state.mode))});
 }
 $("modes").addEventListener("click",function(e){var b=e.target.closest(".mode");if(b){state.mode=b.dataset.mode;save();renderHome()}});
 function badgeHtml(b){var on=state.badges.indexOf(b.id)>-1;return '<div class="badge'+(on?" on":"")+'"><span class="ico">'+(on?b.ico:"🔒")+"</span><b>"+esc(b.name)+"</b>"+esc(b.desc)+"</div>"}
-$("picks").addEventListener("click",function(e){var b=e.target.closest(".pick");if(b)start(SENTENCES[+b.dataset.i],+b.dataset.i)});
+$("picks").addEventListener("click",function(e){
+  if(e.target.closest("#restartBank")){state.shown=[];state.next=0;fillShown();save();renderHome();return}
+  var b=e.target.closest(".pick");if(b)start(BANK[+b.dataset.i],+b.dataset.i);
+});
 $("nameSave").addEventListener("click",function(){var n=$("nameIn").value.trim();if(n){state.name=n;save();renderHome()}});
 $("nameIn").addEventListener("keydown",function(e){if(e.key==="Enter")$("nameSave").click()});
 $("ownGo").addEventListener("click",function(){
@@ -775,9 +829,12 @@ $("board").addEventListener("click",function(e){
 
 /* ---------- finish ---------- */
 function finishSentence(){
-  if(G.idx>-1)state.done[G.idx]=true;
+  G.entry={date:new Date().toISOString(),stars:G.stars,custom:G.idx<0,v:G.versions.map(function(v){return {t:v.text,c:v.colors}})};
+  state.history.unshift(G.entry);
+  if(G.idx>-1){var k=state.shown.indexOf(G.idx);if(k>-1)state.shown.splice(k,1);fillShown()}
   award("first",G.newBadges);
-  if(SENTENCES.every(function(_,i){return state.done[i]}))award("allsix",G.newBadges);
+  if(state.history.length>=6)award("allsix",G.newBadges);
+  if(state.next>=BANK.length&&!state.shown.length)award("all30",G.newBadges);
   save();refreshTop();
   $("finTitle").textContent=(state.name?"Glowed up, "+state.name+"!":"Glowed up!");
   var avg=G.wpms.length?Math.round(G.wpms.reduce(function(a,b){return a+b},0)/G.wpms.length):null;
@@ -790,6 +847,61 @@ function finishSentence(){
   show("finish");confetti();
 }
 $("finSpeak").addEventListener("click",function(){speak(G.versions[G.versions.length-1].text)});
+$("finCopy").addEventListener("click",function(){copyText(fmtEntry(G.entry,true))});
+
+/* ---------- finished list ---------- */
+var LBL=["Basic sentence","Round 1 \u2013 adjectives","Round 2 \u2013 preposition","Round 3 \u2013 fronted adverbial","Round 4 \u2013 conjunction","Round 5 \u2013 freestyle"];
+var pendingHist=-1;
+function fmtDate(iso,long){try{return new Date(iso).toLocaleDateString("en-GB",long?{day:"numeric",month:"long",year:"numeric"}:{day:"numeric",month:"short"})}catch(e){return ""}}
+function fmtEntry(en,head){
+  var s=en.v.map(function(v,i){return LBL[i]+": "+v.t}).join("\n");
+  return (head?"Sentence Glow-Up"+(state.name?" \u2013 "+state.name:"")+" \u2013 ":"")+fmtDate(en.date,true)+"\n"+s;
+}
+function renderHistory(){
+  var H=state.history;
+  $("histHead").textContent="My finished sentences"+(H.length?" ("+H.length+")":"");
+  $("histEmpty").hidden=!!H.length;$("copyAll").hidden=!H.length;$("histClearRow").hidden=!H.length;$("histConfirm").hidden=true;
+  $("copyBox").hidden=true;$("copyBoxHelp").hidden=true;
+  var canShare=!!navigator.share;
+  $("hist").innerHTML=H.map(function(en,k){
+    var last=en.v[en.v.length-1];
+    var lis=en.v.map(function(v,i){return '<li><span class="lbl">'+esc(LBL[i])+"</span>"+render({tokens:toks(v.t),colors:v.c||[]})+"</li>"}).join("");
+    var tools=pendingHist===k
+      ?'<strong>Delete this one?</strong><button class="btn small" data-hyes="'+k+'">Yes, delete</button><button class="btn ghost small" data-hno="1">Cancel</button>'
+      :'<button class="btn ghost small" data-hcopy="'+k+'">📋 Copy</button>'+(canShare?'<button class="btn ghost small" data-hshare="'+k+'">📤 Share</button>':"")+'<button class="btn ghost small" data-hdel="'+k+'">🗑 Delete</button>';
+    return '<details class="hitem"'+(pendingHist===k?" open":"")+'><summary><span class="hd">'+esc(fmtDate(en.date))+(en.custom?" \u00b7 own sentence":"")+" \u00b7 "+en.stars+' \u2b50</span><span class="hf">'+esc(last.t)+'</span></summary><ol class="ladder">'+lis+'</ol><div class="row" style="margin-top:.6rem">'+tools+"</div></details>";
+  }).join("");
+}
+function showCopyBox(text){
+  if($("home").hidden){renderHome();show("home")}
+  var box=$("copyBox");box.hidden=false;$("copyBoxHelp").hidden=false;box.value=text;
+  box.scrollIntoView({block:"center"});box.focus();box.select();
+}
+function copyText(text){
+  function fallback(){
+    var ok=false;
+    try{var t=document.createElement("textarea");t.value=text;t.setAttribute("readonly","");t.style.position="fixed";t.style.opacity="0";document.body.appendChild(t);t.select();ok=document.execCommand("copy");t.remove()}catch(e){}
+    if(ok)toast("Copied! Paste it into any app.");else showCopyBox(text);
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){toast("Copied! Paste it into any app.")},fallback);
+  }else fallback();
+}
+$("hist").addEventListener("click",function(e){
+  var b=e.target.closest("button");if(!b)return;
+  var H=state.history,d=b.dataset;
+  if(d.hcopy){copyText(fmtEntry(H[+d.hcopy],true));return}
+  if(d.hshare){navigator.share({title:"Sentence Glow-Up",text:fmtEntry(H[+d.hshare],true)}).catch(function(){});return}
+  if(d.hdel){pendingHist=+d.hdel;renderHistory();return}
+  if(d.hno){pendingHist=-1;renderHistory();return}
+  if(d.hyes){H.splice(+d.hyes,1);pendingHist=-1;save();renderHistory();toast("Deleted");return}
+});
+$("copyAll").addEventListener("click",function(){
+  copyText("Sentence Glow-Up"+(state.name?" \u2013 "+state.name:"")+"\n\n"+state.history.map(function(en){return fmtEntry(en,false)}).join("\n\n"));
+});
+$("histClear").addEventListener("click",function(){$("histClearRow").hidden=true;$("histConfirm").hidden=false});
+$("histNo").addEventListener("click",function(){$("histClearRow").hidden=false;$("histConfirm").hidden=true});
+$("histYes").addEventListener("click",function(){state.history=[];save();renderHistory();toast("Finished list cleared")});
 $("againBtn").addEventListener("click",function(){renderHome();show("home")});
 
 /* ---------- player settings + reset ---------- */
@@ -797,7 +909,7 @@ function refreshSettings(){
   $("renameIn").value="";$("renameIn").placeholder=state.name?"Playing now: "+state.name:"Type a name";
   var others=Object.keys(store.players).filter(function(n){return n&&n!==state.name});
   $("playerList").innerHTML=others.map(function(n){return '<button type="button" class="chip add" data-n="'+esc(n)+'">👤 '+esc(n)+"</button>"}).join("");
-  $("resetInfo").textContent="This clears "+(state.name?state.name+"'s ":"")+state.stars+" stars, "+state.badges.length+" badges, typing record and finished-sentence ticks.";
+  $("resetInfo").textContent="This clears "+(state.name?state.name+"'s ":"")+state.stars+" stars, "+state.badges.length+" badges and typing record, and starts the 30 sentences again from the beginning. The finished-sentences list is kept.";
   $("resetAsk").hidden=false;$("resetConfirm").hidden=true;
   var all=Object.keys(store.players).filter(Boolean);
   $("delList").innerHTML=all.length?all.map(function(n){return '<button type="button" class="chip add" data-del="'+esc(n)+'">🗑 '+esc(n)+(n===state.name?" (playing now)":"")+"</button>"}).join(""):'<span class="muted">No players yet.</span>';
@@ -844,7 +956,7 @@ $("renameIn").addEventListener("keydown",function(e){if(e.key==="Enter")$("renam
 $("resetStart").addEventListener("click",function(){$("resetAsk").hidden=true;$("resetConfirm").hidden=false});
 $("resetNo").addEventListener("click",function(){$("resetAsk").hidden=false;$("resetConfirm").hidden=true});
 $("resetYes").addEventListener("click",function(){
-  state={name:state.name,stars:0,bestWpm:0,badges:[],done:{},powers:0,mode:state.mode||"type"};
+  state={name:state.name,stars:0,bestWpm:0,badges:[],powers:0,mode:state.mode||"type",shown:[],next:0,history:state.history};fillShown();
   save();renderHome();
   $("settings").hidden=false;$("resetAsk").hidden=false;$("resetConfirm").hidden=true;
   $("resetInfo").textContent="All stars and badges have been cleared.";
