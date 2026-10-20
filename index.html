@@ -132,6 +132,16 @@ textarea:focus{border-color:var(--accent);outline:none}
 canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:15}
 footer{text-align:center;font-size:.85rem;margin-top:2rem}
 footer button{background:none;border:none;color:var(--muted);text-decoration:underline}
+/* signpost guide table */
+.tblwrap{overflow-x:auto}
+.sg{width:100%;border-collapse:collapse;font-size:.95rem}
+.sg th,.sg td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+.sg th{font-family:var(--display);font-size:1rem;color:var(--r4)}
+.sg td:first-child{font-weight:700;white-space:nowrap}
+.sg tbody tr:nth-child(odd){background:color-mix(in srgb,var(--r4) 6%,transparent)}
+/* signpost check */
+.fb.sp{border-color:var(--r4);background:color-mix(in srgb,var(--r4) 9%,transparent)}
+.sp-wrong{color:var(--warn);font-weight:700;margin:.3rem 0 0}
 /* finished list */
 .hitem{border-top:1px dashed var(--line);padding:.6rem 0}
 .hitem:first-child{border-top:none}
@@ -257,6 +267,22 @@ footer button{background:none;border:none;color:var(--muted);text-decoration:und
       <h2 id="taskTitle"></h2>
       <p style="margin:.4rem 0 0" id="taskTip"></p>
       <p class="eg" id="taskEg"></p>
+      <div id="signGuide" hidden>
+        <p style="margin:.9rem 0 .4rem;font-weight:700">🪧 Signpost guide: what each conjunction tells the reader</p>
+        <div class="tblwrap"><table class="sg">
+          <thead><tr><th>Conjunction</th><th>Its job</th><th>It tells the reader…</th></tr></thead>
+          <tbody>
+            <tr><td>because, as, since</td><td>A reason</td><td>“Here comes the reason.”</td></tr>
+            <tr><td>although, even though, but, yet</td><td>A surprise or opposite</td><td>“Here comes something you wouldn’t expect.”</td></tr>
+            <tr><td>while, whilst, as, when</td><td>Same time</td><td>“This is happening at the same moment.”</td></tr>
+            <tr><td>so</td><td>A result</td><td>“Here comes what happened because of it.”</td></tr>
+            <tr><td>until, before, after, once</td><td>Time order</td><td>“Here’s when it happened.”</td></tr>
+            <tr><td>if, unless</td><td>Only if…</td><td>“This only happens if something else does.”</td></tr>
+            <tr><td>and</td><td>Adding an idea</td><td>“Here’s another idea that goes with it.”</td></tr>
+          </tbody>
+        </table></div>
+        <p class="muted" style="margin:.4rem 0 0;font-size:.92rem">Test it: read the first part, then ask “Does the next part really do what my signpost promised?”</p>
+      </div>
       <details id="bankBox"><summary>Need ideas? Open the word bank</summary><div class="chips" id="bank"></div></details>
       <div class="power" id="power"><span class="ico">⚡</span><div><b>Power-up: <span id="powerText"></span></b><div class="muted" style="font-size:.9rem">Do it for 5 bonus stars.</div></div></div>
     </div>
@@ -411,7 +437,7 @@ var ROUNDS=[
    {text:"start with a time phrase, like \u201cMoments later,\u201d",test:function(c){var o=c.opener.toLowerCase();return /\b(later|soon|dawn|dusk|night|morning|evening|last|finally|eventually|meanwhile|suddenly|after|before|when|once|until|then|minute|moment|hour|day)\b/.test(o)}}
   ]},
  {name:"Conjunction",title:"Round 4: Add a conjunction",
-  tip:"Join on a new idea with a conjunction such as because, although, whilst, until or so.",
+  tip:"Join on a new idea with a conjunction. Conjunctions are signposts, so pick one whose job fits: because (a reason), although (a surprise), whilst (at the same time), so (a result), until (time).",
   eg:"…watched the deer whilst photographers waited in silence.",
   bank:["because","although","whilst","while","until","unless","as","so","even though","before","after"],
   powers:[
@@ -433,7 +459,7 @@ var LEVELS=[[0,"Word Apprentice"],[60,"Adjective Ace"],[150,"Clause Commander"],
 var BADGES=[
  {id:"first",ico:"🌱",name:"First Glow-Up",desc:"Finish a sentence"},
  {id:"comma",ico:"✏️",name:"Comma Champion",desc:"Nail Round 3 first try"},
- {id:"fancy",ico:"🔗",name:"Clause Captain",desc:"Use a fancy conjunction"},
+ {id:"fancy",ico:"🔗",name:"Clause Captain",desc:"Match a conjunction to its job"},
  {id:"simile",ico:"🌟",name:"Simile Star",desc:"Write a simile"},
  {id:"power3",ico:"⚡",name:"Power Player",desc:"Complete 3 power-ups"},
  {id:"power10",ico:"🚀",name:"Power Pro",desc:"Complete 10 power-ups"},
@@ -572,6 +598,7 @@ function setupRound(){
   $("taskTitle").textContent=R.title;$("taskTitle").style.color="var(--r"+G.round+")";
   $("taskTip").textContent=R.tip;$("taskEg").textContent="Example: "+R.eg;
   $("bankBox").open=false;
+  $("signGuide").hidden=G.round!==4;
   $("powerText").textContent=G.power.text;
   $("typer").value="";$("fb").innerHTML="";$("checkBtn").hidden=false;
   updateCount();$("liveWpm").textContent="⌨️ Start typing…";
@@ -640,9 +667,7 @@ function judge(r,c){
   if(r===4){
     var cj=c.addedNorms.filter(function(w){return CONJ.has(w)});
     if(!cj.length)return {pass:false,hint:"Join on a new idea with a conjunction like because, although or until."};
-    var fancy=cj.some(function(w){return !SIMPLE_CONJ.has(w)});
-    if(fancy)extras.push({label:"Fancy conjunction",pts:3,badge:"fancy"});
-    return {pass:true,msg:fancy?"Super joining!":"Good joining! Try because, although or until next time for bonus stars.",extras:extras};
+    return {pass:true,msg:"Good joining!",extras:extras,conj:pickConj(c,cj)};
   }
   if(c.newHas(/\blike (a|an|the)\b|\bas \w+ as\b/i))extras.push({label:"Simile",pts:3,badge:"simile"});
   if(c.newHas(/,\s*(who|which|whose|where)\b/i))extras.push({label:"Relative clause",pts:3});
@@ -656,7 +681,72 @@ function check(){
   var c=analyse(prev,text);
   var j=judge(G.round,c);
   if(!j.pass){G.firstTry=false;showFb(false,j.hint,c);return}
+  if(G.round===4&&j.conj&&WORDJOBS[j.conj]){G.wpmAtCheck=currentWpm();signpost(c,j);return}
   finishRound(c,j,false);
+}
+
+/* ---------- signpost check (round 4) ---------- */
+var JOBS={
+ reason:{label:"Giving a reason",promise:"here comes the reason",test:"Is the second part really the reason?"},
+ surprise:{label:"A surprise or opposite",promise:"here comes something you wouldn\u2019t expect",test:"Is the second part something you wouldn\u2019t expect after the first part?"},
+ same:{label:"Happening at the same time",promise:"this is happening at the same moment",test:"Are both things really happening at the same moment?"},
+ result:{label:"What happened as a result",promise:"here comes what happened because of it",test:"Did the second part really happen because of the first?"},
+ time:{label:"Time order",promise:"here\u2019s when it happened: before, after, or up to a moment",test:"Do the events make sense in that order?"},
+ condition:{label:"Only if\u2026",promise:"this only happens if something else does",test:"Does one part really depend on the other?"},
+ add:{label:"Adding another idea",promise:"here\u2019s another idea that goes with the first",test:"Do the two ideas really belong together?"},
+ choice:{label:"A choice",promise:"it\u2019s one thing or the other",test:"Is it really a choice between two things?"}
+};
+var WORDJOBS={because:["reason"],as:["reason","same"],since:["reason","time"],although:["surprise"],though:["surprise"],"even though":["surprise"],but:["surprise"],yet:["surprise"],
+ while:["same","surprise"],whilst:["same","surprise"],when:["same","time"],whenever:["same","time"],until:["time"],before:["time"],after:["time"],once:["time"],
+ so:["result"],if:["condition"],unless:["condition"],and:["add"],or:["choice"],nor:["choice"]};
+function pickConj(c,cj){
+  if(c.addedNorms.indexOf("even")>-1&&c.addedNorms.indexOf("though")>-1)return "even though";
+  var f=cj.filter(function(w){return !SIMPLE_CONJ.has(w)});
+  return f[0]||cj[0];
+}
+function signpost(c,j){
+  var word=j.conj,ok=WORDJOBS[word],tries=0,extras=(j.extras||[]).slice();
+  var opts=["reason","surprise","same","result","time","add"];
+  ok.forEach(function(k){if(opts.indexOf(k)<0)opts.push(k)});
+  $("checkBtn").hidden=true;$("copyBtn").hidden=true;
+  function ask(msg){
+    $("fb").innerHTML='<div class="fb sp"><h3>🪧 Signpost check</h3>'+(msg||"")+'<p style="margin:.3rem 0 .6rem">Conjunctions are signposts: they tell the reader what kind of idea is coming next. What job is <b>\u201c'+esc(word)+'\u201d</b> doing in your sentence?</p><div class="chips">'+opts.map(function(k){return '<button type="button" class="btn ghost small" data-job="'+k+'">'+esc(JOBS[k].label)+"</button>"}).join("")+"</div></div>";
+  }
+  ask();
+  $("fb").onclick=function(e){
+    var b=e.target.closest("button");if(!b)return;var d=b.dataset;
+    if(d.job){
+      tries++;
+      if(ok.indexOf(d.job)>-1){
+        extras.push({label:"Signpost spotted",pts:tries===1?5:2});
+        if(tries===1)award("fancy",G.newBadges);
+        var J=JOBS[d.job];
+        $("fb").innerHTML='<div class="fb sp"><h3>✅ Yes! \u201c'+esc(word)+'\u201d means: '+esc(J.promise)+'.</h3><p style="margin:.4rem 0 .2rem">Now read your sentence out loud:</p><p class="stage" style="font-size:1.2rem;margin:.2rem 0 .6rem">'+esc(c.newText)+'</p><p style="margin:0 0 .7rem"><b>'+esc(J.test)+'</b></p><div class="row"><button class="btn small" data-sense="yes">Yes, it makes sense</button><button class="btn ghost small" data-sense="no">Not really</button></div></div>';
+      }else{
+        ask('<p class="sp-wrong">Not quite. \u201c'+esc(word)+'\u201d is a signpost for <b>'+ok.map(function(k){return esc(JOBS[k].label.toLowerCase())}).join("</b> or <b>")+"</b>: "+esc(JOBS[ok[0]].promise)+". Pick that one to carry on.</p>");
+      }
+      return;
+    }
+    if(d.sense==="yes"){
+      extras.push({label:"Makes sense",pts:3});
+      $("fb").onclick=null;
+      finishRound(c,{pass:true,msg:"Great joining, and your signpost points the right way!",extras:extras},false);return;
+    }
+    if(d.sense==="no"){
+      $("fb").innerHTML='<div class="fb sp"><h3>Good checking! 🕵️</h3><p style="margin:.3rem 0 .8rem">Spotting that is exactly what good writers do. You could change the words after \u201c'+esc(word)+'\u201d so they fit its job, or pick a different signpost: because (reason), although (surprise), whilst (same time), so (result), until (time).</p><div class="row"><button class="btn small" data-fix="1">Change my sentence</button><button class="btn ghost small" data-keep="1">Keep it and move on</button></div></div>';
+      return;
+    }
+    if(d.fix){
+      $("fb").onclick=null;$("fb").innerHTML="";G.wpmAtCheck=undefined;
+      $("checkBtn").hidden=false;$("copyBtn").hidden=state.mode==="words";
+      if(state.mode!=="words")$("typer").focus();
+      return;
+    }
+    if(d.keep){
+      $("fb").onclick=null;
+      finishRound(c,{pass:true,msg:"OK! Keep checking your signposts: it\u2019s a great habit.",extras:extras},false);
+    }
+  };
 }
 function showFb(ok,hint,c){
   var h='<div class="fb no"><h3>Not quite yet</h3><p style="margin:.3rem 0 .8rem">'+esc(hint)+'</p><div class="row"><button class="btn small" id="retry">Try again</button>'+(c?'<button class="btn ghost small" id="skipOn">Move on anyway (fewer stars)</button>':"")+"</div></div>";
@@ -671,7 +761,7 @@ function finishRound(c,j,skipped){
   (j.extras||[]).forEach(function(x){lines.push([x.label,x.pts]);total+=x.pts;if(x.badge)award(x.badge,G.newBadges)});
   if(/^[A-Z]/.test(c.newText)&&/[.!?]["'\u2019\u201d]?$/.test(c.newText)){lines.push(["Capital letter and full stop",2]);total+=2}
   if(!skipped&&G.power.test(c)){lines.push(["⚡ Power-up",5]);total+=5;state.powers++;if(state.powers>=3)award("power3",G.newBadges);if(state.powers>=10)award("power10",G.newBadges)}
-  var w=currentWpm();
+  var w=G.wpmAtCheck!==undefined?G.wpmAtCheck:currentWpm();G.wpmAtCheck=undefined;
   if(w!==null&&w<200){
     G.wpms.push(w);
     if(w>state.bestWpm){if(state.bestWpm>0){lines.push(["New typing record ("+w+" wpm)",3]);total+=3}state.bestWpm=w}
