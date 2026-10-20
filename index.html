@@ -774,6 +774,7 @@ function finishRound(c,j,skipped){
   G.versions.push({text:c.newText,tokens:c.newTokens,colors:colors});
   $("stage").innerHTML=render(G.versions[G.versions.length-1]);
   var last=G.round===5;
+  if(last)recordFinished();
   $("fb").innerHTML='<div class="fb ok"><h3>'+(skipped?"On we go":"Yes! +"+total+" ⭐")+'</h3><p style="margin:.3rem 0 0">'+esc(j.msg)+"</p><ul>"+lines.map(function(l){return"<li>"+esc(l[0])+": +"+l[1]+"</li>"}).join("")+(w!==null?"<li>Typing speed: "+w+" words per minute</li>":"")+'</ul><button class="btn" id="nextBtn">'+(last?"See how it grew":"Next round")+"</button></div>";
   $("checkBtn").hidden=true;$("copyBtn").hidden=true;$("wordArea").classList.add("locked");$("typer").readOnly=true;
   $("nextBtn").focus();
@@ -918,7 +919,8 @@ $("board").addEventListener("click",function(e){
 });
 
 /* ---------- finish ---------- */
-function finishSentence(){
+function recordFinished(){
+  if(G.saved)return;G.saved=true;
   G.entry={date:new Date().toISOString(),stars:G.stars,custom:G.idx<0,v:G.versions.map(function(v){return {t:v.text,c:v.colors}})};
   state.history.unshift(G.entry);
   if(G.idx>-1){var k=state.shown.indexOf(G.idx);if(k>-1)state.shown.splice(k,1);fillShown()}
@@ -926,6 +928,9 @@ function finishSentence(){
   if(state.history.length>=6)award("allsix",G.newBadges);
   if(state.next>=BANK.length&&!state.shown.length)award("all30",G.newBadges);
   save();refreshTop();
+}
+function finishSentence(){
+  recordFinished();
   $("finTitle").textContent=(state.name?"Glowed up, "+state.name+"!":"Glowed up!");
   var avg=G.wpms.length?Math.round(G.wpms.reduce(function(a,b){return a+b},0)/G.wpms.length):null;
   $("finStats").textContent="You earned "+G.stars+" stars on this sentence"+(avg!==null?" and typed at about "+avg+" words per minute.":".")+" Level: "+levelInfo(state.stars).name+".";
